@@ -8,13 +8,14 @@
 # Cac dinh nghia bien	
 filename:	.asciiz	"FLOAT2.BIN"
 float:		.float	0.00000000
+		.space 	8
 NAN:		.float	NaN
-
 # Cac cau nhac nhap du lieu
 CT:		.asciiz "Chuong trinh nhan 2 so thuc chuan IEEE 754 chinh xac don"
 Sthuc1:		.asciiz	"So thuc thu 1 la: "
 Sthuc2:		.asciiz	"So thuc thu 2 la: "
 Kqua:		.asciiz	"Ket qua nhan hai so thuc: "
+Kqua2:		.asciiz	"Ket qua cua lenh mul.s: "
 
 #----------------------
 # Code segment
@@ -87,6 +88,12 @@ main:
 	addi	$v0,$zero,11
 	syscall
 	
+	la 	$a0,Kqua2
+	addi 	$v0,$zero,4
+	syscall
+	mul.s	$f12,$f0,$f1
+	li	$v0,2
+	syscall
 # Dong file
  	move 	$a0,$s0
  	li	$v0,16
@@ -281,13 +288,14 @@ mul2f:
    	srl	$s3,$s3,24
   	add	$s2,$s2,$s3     # Lay 23 bit cao nhat 
     	j 	s_right
-   bias:sll	$s2,$s2,9	
+   bias:
+   	sll	$s2,$s2,9	
    	srl	$s3,$s3,23
   	add	$s2,$s2,$s3
   	j	result
    s_right:	# Dich phai phan phan so voi so bit duoc luu trong thanh ghi $t4, sau khi thuc hien xong vong lap xuat ket qua
    	srlv	$s2,$s2,$t4     
-  	
+  	j	result
   	
    # Neu exp1 + exp2 > bias
    	# O 47 bit ket qua phep nhan ta vua tinh duoc, neu bit 47 khong bang 1 thi ta se dich trai ket qua va giam so mu cho den khi bit 47 bang 1
@@ -345,9 +353,19 @@ mul2f:
    	mfhi	$s2
    	mflo	$s3
    	sll 	$s2,$s2,8
-   	srl	$s3,$s3,24
+   	srl	$s3,$s3,23
+   	and	$s5,$s3,0x1
+   	srl	$s3,$s3,1
   	add	$s2,$s2,$s3
+  	add	$s2,$s2,$s5
+  	
+  	beq	$t4,0,result
+  	
+  	subi	$t4,$t4,1
    	srlv	$s2,$s2,$t4
+   	and	$s5,$s2,0x1
+   	srl	$s2,$s2,1
+   	add	$s2,$s2,$s5
    	j	result
    	
    	# Neu ket qua exp1 + exp2 >= bias:
@@ -363,16 +381,22 @@ mul2f:
    	beq	$t3,0,frac
    	# TH 48 bit   	
    	sll 	$s2,$s2,8          
-   	srl	$s3,$s3,24
+   	srl	$s3,$s3,23
+   	andi	$s4,$s3,0x1
+   	srl	$s3,$s3,1
    	add	$s2,$s2,$s3
+   	add	$s2,$s2,$s4
    	subiu	$s2,$s2,0x00800000
    	addiu	$s1,$s1,0x00800000   	
    	j 	check2
    	# TH 47 bit
   frac:	 
    	sll 	$s2,$s2,9
-   	srl	$s3,$s3,23
+   	srl	$s3,$s3,22
+   	andi	$s4,$s3,0x1
+   	srl	$s3,$s3,1
    	add	$s2,$s2,$s3
+   	add	$s2,$s2,$s4
    	subiu	$s2,$s2,0x00800000
    	
    	# Sau khi tinh xong ket qua phan mu va phan phan so, 
